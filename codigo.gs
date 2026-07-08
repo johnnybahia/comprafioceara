@@ -21,6 +21,7 @@ function updateMenus() {
     .addSeparator()
     .addItem("Atualizar Total Embarcado", "atualizarTotalEmbarcado")
     .addItem("Alternar Restauração", "toggleRestore")
+    .addItem("Corrigir Datas em Texto", "corrigirDatasEmTexto")
     .addItem("Apagar Última Linha", "apagarUltimaLinha")
     .addSeparator()
     .addItem("ÚLTIMA LINHA", "select10RowsBelow")
@@ -210,7 +211,9 @@ function onEdit(e) {
   
   var restoreEnabled = PropertiesService.getScriptProperties().getProperty("restoreEnabled");
   if (restoreEnabled === "false") {
-    Logger.log("onEdit: Restauração desativada, nenhuma ação realizada.");
+    // Edição/colagem manual liberada: converte datas coladas como texto em datas reais.
+    normalizarDatasColadas(e.range);
+    Logger.log("onEdit: Restauração desativada, datas da faixa colada normalizadas.");
     return;
   }
   
@@ -1263,6 +1266,7 @@ function updateMenus() {
     .addSeparator()
     .addItem("Atualizar Total Embarcado", "atualizarTotalEmbarcado")
     .addItem("Alternar Restauração", "toggleRestore")
+    .addItem("Corrigir Datas em Texto", "corrigirDatasEmTexto")
     .addItem("Apagar Última Linha", "apagarUltimaLinha")
     .addSeparator()
     .addItem("ÚLTIMA LINHA", "select10RowsBelow")
@@ -1336,7 +1340,9 @@ function onEdit(e) {
   
   var restoreEnabled = PropertiesService.getScriptProperties().getProperty("restoreEnabled");
   if (restoreEnabled === "false") {
-    Logger.log("onEdit: Restauração desativada, nenhuma ação realizada.");
+    // Edição/colagem manual liberada: converte datas coladas como texto em datas reais.
+    normalizarDatasColadas(e.range);
+    Logger.log("onEdit: Restauração desativada, datas da faixa colada normalizadas.");
     return;
   }
   
@@ -3017,4 +3023,88 @@ function parseDataCellEstoque(value) {
   }
   var d = new Date(value);
   return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * normalizarDatasColadas: Converte em Date os valores colados como texto nas
+ * colunas de data da aba ESTOQUE (C = Data, J = Alterado Em) dentro da faixa
+ * editada. Chamada pelo onEdit quando a restauração está desativada, para que
+ * colagens manuais não deixem datas em texto (que sumiriam dos relatórios).
+ */
+function normalizarDatasColadas(range) {
+  var sheet = range.getSheet();
+  var startCol = range.getColumn();
+  var endCol = startCol + range.getNumColumns() - 1;
+  var dateCols = [3, 10]; // C e J
+  for (var i = 0; i < dateCols.length; i++) {
+    var col = dateCols[i];
+    if (col < startCol || col > endCol) continue;
+    var colRange = sheet.getRange(range.getRow(), col, range.getNumRows(), 1);
+    var values = colRange.getValues();
+    var changed = false;
+    for (var r = 0; r < values.length; r++) {
+      var v = values[r][0];
+      if (typeof v === "string" && v.trim() !== "") {
+        var d = parseDataCellEstoque(v);
+        if (d !== null) {
+          values[r][0] = d;
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      colRange.setValues(values);
+      colRange.setNumberFormat("dd/MM/yyyy HH:mm:ss");
+    }
+  }
+}
+
+/**
+ * corrigirDatasEmTexto: Varre toda a aba ESTOQUE (colunas C e J) e converte em
+ * Date os valores que estão gravados como texto — limpeza das colagens antigas.
+ * Disponível no menu GESTÃO DO ESTOQUE.
+ */
+function corrigirDatasEmTexto() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("ESTOQUE");
+  if (!sheet) throw new Error("A aba ESTOQUE não foi encontrada.");
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    SpreadsheetApp.getUi().alert("Não há dados na aba ESTOQUE.");
+    return;
+  }
+
+  PropertiesService.getScriptProperties().setProperty("editingViaScript", "true");
+  var total = 0;
+  try {
+    var dateCols = [3, 10]; // C e J
+    for (var i = 0; i < dateCols.length; i++) {
+      var colRange = sheet.getRange(2, dateCols[i], lastRow - 1, 1);
+      var values = colRange.getValues();
+      var changed = false;
+      for (var r = 0; r < values.length; r++) {
+        var v = values[r][0];
+        if (typeof v === "string" && v.trim() !== "") {
+          var d = parseDataCellEstoque(v);
+          if (d !== null) {
+            values[r][0] = d;
+            changed = true;
+            total++;
+          }
+        }
+      }
+      if (changed) {
+        colRange.setValues(values);
+        colRange.setNumberFormat("dd/MM/yyyy HH:mm:ss");
+      }
+    }
+  } finally {
+    PropertiesService.getScriptProperties().deleteProperty("editingViaScript");
+  }
+
+  SpreadsheetApp.getUi().alert(
+    total > 0
+      ? "Correção concluída: " + total + " célula(s) de data em texto convertida(s) em data real."
+      : "Nenhuma data em texto encontrada. Está tudo certo!"
+  );
 }
