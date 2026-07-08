@@ -807,8 +807,8 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
   var dataValues = dataRange.getValues();
   
   var filtered = dataValues.filter(function(row) {
-    var dt = new Date(row[2]);
-    return dt >= startDate && dt <= endDate;
+    var dt = parseDataCellEstoque(row[2]);
+    return dt !== null && dt >= startDate && dt <= endDate;
   });
   
   var grupos = {};
@@ -817,9 +817,9 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
     if (!grupos[prod]) {
       grupos[prod] = row;
     } else {
-      var currentDate = new Date(row[2]);
-      var storedDate = new Date(grupos[prod][2]);
-      if (currentDate > storedDate) {
+      var currentDate = parseDataCellEstoque(row[2]);
+      var storedDate = parseDataCellEstoque(grupos[prod][2]);
+      if (storedDate === null || (currentDate !== null && currentDate > storedDate)) {
         grupos[prod] = row;
       }
     }
@@ -832,7 +832,9 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
   }
   
   reportData.sort(function(a, b) {
-    return new Date(a[3]) - new Date(b[3]);
+    var da = parseDataCellEstoque(a[3]);
+    var db = parseDataCellEstoque(b[3]);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
   });
   
   var sheetRelatorio = ss.getSheetByName("RELATORIO");
@@ -923,9 +925,9 @@ function gerarRelatorioPorGrupo(grupoSelecionado) {
     if (!gruposItens[item]) {
       gruposItens[item] = row;
     } else {
-      var currentDate = new Date(row[2]);
-      var storedDate = new Date(gruposItens[item][2]);
-      if (currentDate > storedDate) {
+      var currentDate = parseDataCellEstoque(row[2]);
+      var storedDate = parseDataCellEstoque(gruposItens[item][2]);
+      if (storedDate === null || (currentDate !== null && currentDate > storedDate)) {
         gruposItens[item] = row;
       }
     }
@@ -938,7 +940,9 @@ function gerarRelatorioPorGrupo(grupoSelecionado) {
   }
   
   reportData.sort(function(a, b) {
-    return new Date(a[3]) - new Date(b[3]);
+    var da = parseDataCellEstoque(a[3]);
+    var db = parseDataCellEstoque(b[3]);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
   });
   
   var sheetRelatorio = ss.getSheetByName("RELATORIO POR GRUPO DE ITEM");
@@ -1080,8 +1084,8 @@ function filtrarEstoquePorPeriodo(dataInicio, dataFim) {
   // Percorre cada linha e copia as que tiverem data na coluna C (índice 2) dentro do período
   for (var i = 0; i < dataValues.length; i++) {
     var row = dataValues[i];
-    var dateValue = row[2];
-    if (!(dateValue instanceof Date)) continue;
+    var dateValue = parseDataCellEstoque(row[2]);
+    if (dateValue === null) continue;
     if (dateValue >= startDate && dateValue <= endDate) {
       targetData.push(row);
     }
@@ -1929,8 +1933,8 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
   var dataValues = dataRange.getValues();
   
   var filtered = dataValues.filter(function(row) {
-    var dt = new Date(row[2]);
-    return dt >= startDate && dt <= endDate;
+    var dt = parseDataCellEstoque(row[2]);
+    return dt !== null && dt >= startDate && dt <= endDate;
   });
   
   var grupos = {};
@@ -1939,9 +1943,9 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
     if (!grupos[prod]) {
       grupos[prod] = row;
     } else {
-      var currentDate = new Date(row[2]);
-      var storedDate = new Date(grupos[prod][2]);
-      if (currentDate > storedDate) {
+      var currentDate = parseDataCellEstoque(row[2]);
+      var storedDate = parseDataCellEstoque(grupos[prod][2]);
+      if (storedDate === null || (currentDate !== null && currentDate > storedDate)) {
         grupos[prod] = row;
       }
     }
@@ -1954,7 +1958,9 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
   }
   
   reportData.sort(function(a, b) {
-    return new Date(a[3]) - new Date(b[3]);
+    var da = parseDataCellEstoque(a[3]);
+    var db = parseDataCellEstoque(b[3]);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
   });
   
   var sheetRelatorio = ss.getSheetByName("RELATORIO");
@@ -2045,9 +2051,9 @@ function gerarRelatorioPorGrupo(grupoSelecionado) {
     if (!gruposItens[item]) {
       gruposItens[item] = row;
     } else {
-      var currentDate = new Date(row[2]);
-      var storedDate = new Date(gruposItens[item][2]);
-      if (currentDate > storedDate) {
+      var currentDate = parseDataCellEstoque(row[2]);
+      var storedDate = parseDataCellEstoque(gruposItens[item][2]);
+      if (storedDate === null || (currentDate !== null && currentDate > storedDate)) {
         gruposItens[item] = row;
       }
     }
@@ -2060,7 +2066,9 @@ function gerarRelatorioPorGrupo(grupoSelecionado) {
   }
   
   reportData.sort(function(a, b) {
-    return new Date(a[3]) - new Date(b[3]);
+    var da = parseDataCellEstoque(a[3]);
+    var db = parseDataCellEstoque(b[3]);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
   });
   
   var sheetRelatorio = ss.getSheetByName("RELATORIO POR GRUPO DE ITEM");
@@ -2984,4 +2992,29 @@ function getProdutosEstoque() {
   var values = sheet.getRange('B2:B' + lastRow).getDisplayValues().flat();
   var produtos = values.filter(function(v) { return v.toString().trim() !== ''; });
   return Array.from(new Set(produtos));
+}
+
+/**
+ * parseDataCellEstoque: Converte o valor da coluna Data (C) da aba ESTOQUE em Date.
+ * Células gravadas como TEXTO no formato dd/mm/aaaa (com ou sem hh:mm:ss) — por
+ * exemplo, linhas coladas manualmente com a restauração desativada — não são
+ * reconhecidas por new Date() (que espera mm/dd/aaaa) e faziam o registro
+ * desaparecer silenciosamente dos relatórios por período.
+ * Retorna null quando o valor não pode ser interpretado como data.
+ */
+function parseDataCellEstoque(value) {
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === "string") {
+    var m = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (m) {
+      return new Date(
+        parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10),
+        parseInt(m[4] || "0", 10), parseInt(m[5] || "0", 10), parseInt(m[6] || "0", 10)
+      );
+    }
+  }
+  var d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
 }
