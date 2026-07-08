@@ -473,13 +473,18 @@ function atualizarCompraDeFio() {
     threshold = 0;
   }
   
-  for (var i = 0; i < totalCompra.length; i++) {
-    var totalValue = totalCompra[i][0];
-    sheetCompra.getRange(i + 2, 2).setValue(totalValue);
-    var label = parseFloat(totalValue) < threshold ? "URGENTE" : "ESTOQUE";
-    sheetCompra.getRange(i + 2, 5).setValue(label);
-    sheetCompra.getRange(i + 2, 6).setValue(breakdownRel[i][0]);
-    sheetCompra.getRange(i + 2, 7).setValue(breakdownTot[i][0]);
+  if (totalCompra.length > 0) {
+    var colTotal = [];
+    var colsStatusRelTot = [];
+    for (var i = 0; i < totalCompra.length; i++) {
+      var totalValue = totalCompra[i][0];
+      var label = parseFloat(totalValue) < threshold ? "URGENTE" : "ESTOQUE";
+      colTotal.push([totalValue]);
+      colsStatusRelTot.push([label, breakdownRel[i][0], breakdownTot[i][0]]);
+    }
+    // Escrita em lote (2 chamadas) no lugar de 4 setValue por linha.
+    sheetCompra.getRange(2, 2, colTotal.length, 1).setValues(colTotal);
+    sheetCompra.getRange(2, 5, colsStatusRelTot.length, 3).setValues(colsStatusRelTot);
   }
   
   var existingFilter = sheetCompra.getFilter();
@@ -610,7 +615,9 @@ function getItemList() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetDados = ss.getSheetByName("DADOS");
   if (!sheetDados) return [];
-  var values = sheetDados.getRange("A:A").getValues().flat();
+  var lastRowDados = sheetDados.getLastRow();
+  if (lastRowDados < 1) return [];
+  var values = sheetDados.getRange(1, 1, lastRowDados, 1).getValues().flat();
   var items = [];
   for (var i = 0; i < values.length; i++) {
     if (values[i] && values[i].toString().trim() !== "") {
@@ -627,7 +634,9 @@ function getGroupList() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetDados = ss.getSheetByName("DADOS");
   if (!sheetDados) return [];
-  var values = sheetDados.getRange("D:D").getValues().flat();
+  var lastRowDados = sheetDados.getLastRow();
+  if (lastRowDados < 1) return [];
+  var values = sheetDados.getRange(1, 4, lastRowDados, 1).getValues().flat();
   var groups = [];
   for (var i = 0; i < values.length; i++) {
     if (values[i] && values[i].toString().trim() !== "") {
@@ -687,16 +696,18 @@ function getLastRegistration(item, currentRow) {
     Logger.log("getLastRegistration: Aba ESPELHO DO ESTOQUE não encontrada.");
     return { lastDate: null, lastStock: 0 };
   }
-  var data = sheetEspelho.getDataRange().getValues();
+  var lastRowEspelho = sheetEspelho.getLastRow();
   var result = { lastDate: null, lastStock: 0 };
-  if (data.length < 2) return result;
+  if (lastRowEspelho < 2) return result;
+  // Lê apenas as 3 colunas usadas (A:C) em vez de todas as colunas da aba.
+  var data = sheetEspelho.getRange(1, 1, lastRowEspelho, 3).getValues();
+  var alvo = normalize(item);
   
-  Logger.log("getLastRegistration: Procurando por " + normalize(item));
+  Logger.log("getLastRegistration: Procurando por " + alvo);
   for (var i = data.length - 1; i >= 1; i--) {
     if ((i + 1) >= currentRow) continue;
     var currentItem = data[i][0];
-    Logger.log("Linha " + (i + 1) + ": " + normalize(currentItem));
-    if (currentItem && normalize(currentItem) === normalize(item)) {
+    if (currentItem && normalize(currentItem) === alvo) {
       result.lastDate = data[i][1];
       result.lastStock = data[i][2];
       Logger.log("getLastRegistration: Encontrado na linha " + (i + 1) + " com Data=" + result.lastDate + " e Estoque=" + result.lastStock);
@@ -1602,13 +1613,18 @@ function atualizarCompraDeFio() {
     threshold = 0;
   }
   
-  for (var i = 0; i < totalCompra.length; i++) {
-    var totalValue = totalCompra[i][0];
-    sheetCompra.getRange(i + 2, 2).setValue(totalValue);
-    var label = parseFloat(totalValue) < threshold ? "URGENTE" : "ESTOQUE";
-    sheetCompra.getRange(i + 2, 5).setValue(label);
-    sheetCompra.getRange(i + 2, 6).setValue(breakdownRel[i][0]);
-    sheetCompra.getRange(i + 2, 7).setValue(breakdownTot[i][0]);
+  if (totalCompra.length > 0) {
+    var colTotal = [];
+    var colsStatusRelTot = [];
+    for (var i = 0; i < totalCompra.length; i++) {
+      var totalValue = totalCompra[i][0];
+      var label = parseFloat(totalValue) < threshold ? "URGENTE" : "ESTOQUE";
+      colTotal.push([totalValue]);
+      colsStatusRelTot.push([label, breakdownRel[i][0], breakdownTot[i][0]]);
+    }
+    // Escrita em lote (2 chamadas) no lugar de 4 setValue por linha.
+    sheetCompra.getRange(2, 2, colTotal.length, 1).setValues(colTotal);
+    sheetCompra.getRange(2, 5, colsStatusRelTot.length, 3).setValues(colsStatusRelTot);
   }
   
   var existingFilter = sheetCompra.getFilter();
@@ -1739,7 +1755,9 @@ function getItemList() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetDados = ss.getSheetByName("DADOS");
   if (!sheetDados) return [];
-  var values = sheetDados.getRange("A:A").getValues().flat();
+  var lastRowDados = sheetDados.getLastRow();
+  if (lastRowDados < 1) return [];
+  var values = sheetDados.getRange(1, 1, lastRowDados, 1).getValues().flat();
   var items = [];
   for (var i = 0; i < values.length; i++) {
     if (values[i] && values[i].toString().trim() !== "") {
@@ -1756,7 +1774,9 @@ function getGroupList() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheetDados = ss.getSheetByName("DADOS");
   if (!sheetDados) return [];
-  var values = sheetDados.getRange("D:D").getValues().flat();
+  var lastRowDados = sheetDados.getLastRow();
+  if (lastRowDados < 1) return [];
+  var values = sheetDados.getRange(1, 4, lastRowDados, 1).getValues().flat();
   var groups = [];
   for (var i = 0; i < values.length; i++) {
     if (values[i] && values[i].toString().trim() !== "") {
@@ -1816,16 +1836,18 @@ function getLastRegistration(item, currentRow) {
     Logger.log("getLastRegistration: Aba ESPELHO DO ESTOQUE não encontrada.");
     return { lastDate: null, lastStock: 0 };
   }
-  var data = sheetEspelho.getDataRange().getValues();
+  var lastRowEspelho = sheetEspelho.getLastRow();
   var result = { lastDate: null, lastStock: 0 };
-  if (data.length < 2) return result;
+  if (lastRowEspelho < 2) return result;
+  // Lê apenas as 3 colunas usadas (A:C) em vez de todas as colunas da aba.
+  var data = sheetEspelho.getRange(1, 1, lastRowEspelho, 3).getValues();
+  var alvo = normalize(item);
   
-  Logger.log("getLastRegistration: Procurando por " + normalize(item));
+  Logger.log("getLastRegistration: Procurando por " + alvo);
   for (var i = data.length - 1; i >= 1; i--) {
     if ((i + 1) >= currentRow) continue;
     var currentItem = data[i][0];
-    Logger.log("Linha " + (i + 1) + ": " + normalize(currentItem));
-    if (currentItem && normalize(currentItem) === normalize(item)) {
+    if (currentItem && normalize(currentItem) === alvo) {
       result.lastDate = data[i][1];
       result.lastStock = data[i][2];
       Logger.log("getLastRegistration: Encontrado na linha " + (i + 1) + " com Data=" + result.lastDate + " e Estoque=" + result.lastStock);
