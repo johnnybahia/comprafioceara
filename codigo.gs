@@ -21,6 +21,7 @@ function updateMenus() {
     .addSeparator()
     .addItem("Atualizar Total Embarcado", "atualizarTotalEmbarcado")
     .addItem("Alternar Restauração", "toggleRestore")
+    .addItem("Corrigir Datas em Texto", "corrigirDatasEmTexto")
     .addItem("Apagar Última Linha", "apagarUltimaLinha")
     .addSeparator()
     .addItem("ÚLTIMA LINHA", "select10RowsBelow")
@@ -210,7 +211,9 @@ function onEdit(e) {
   
   var restoreEnabled = PropertiesService.getScriptProperties().getProperty("restoreEnabled");
   if (restoreEnabled === "false") {
-    Logger.log("onEdit: Restauração desativada, nenhuma ação realizada.");
+    // Edição/colagem manual liberada: converte datas coladas como texto em datas reais.
+    normalizarDatasColadas(e.range);
+    Logger.log("onEdit: Restauração desativada, datas da faixa colada normalizadas.");
     return;
   }
   
@@ -807,8 +810,8 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
   var dataValues = dataRange.getValues();
   
   var filtered = dataValues.filter(function(row) {
-    var dt = new Date(row[2]);
-    return dt >= startDate && dt <= endDate;
+    var dt = parseDataCellEstoque(row[2]);
+    return dt !== null && dt >= startDate && dt <= endDate;
   });
   
   var grupos = {};
@@ -817,9 +820,9 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
     if (!grupos[prod]) {
       grupos[prod] = row;
     } else {
-      var currentDate = new Date(row[2]);
-      var storedDate = new Date(grupos[prod][2]);
-      if (currentDate > storedDate) {
+      var currentDate = parseDataCellEstoque(row[2]);
+      var storedDate = parseDataCellEstoque(grupos[prod][2]);
+      if (storedDate === null || (currentDate !== null && currentDate > storedDate)) {
         grupos[prod] = row;
       }
     }
@@ -832,7 +835,9 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
   }
   
   reportData.sort(function(a, b) {
-    return new Date(a[3]) - new Date(b[3]);
+    var da = parseDataCellEstoque(a[3]);
+    var db = parseDataCellEstoque(b[3]);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
   });
   
   var sheetRelatorio = ss.getSheetByName("RELATORIO");
@@ -923,9 +928,9 @@ function gerarRelatorioPorGrupo(grupoSelecionado) {
     if (!gruposItens[item]) {
       gruposItens[item] = row;
     } else {
-      var currentDate = new Date(row[2]);
-      var storedDate = new Date(gruposItens[item][2]);
-      if (currentDate > storedDate) {
+      var currentDate = parseDataCellEstoque(row[2]);
+      var storedDate = parseDataCellEstoque(gruposItens[item][2]);
+      if (storedDate === null || (currentDate !== null && currentDate > storedDate)) {
         gruposItens[item] = row;
       }
     }
@@ -938,7 +943,9 @@ function gerarRelatorioPorGrupo(grupoSelecionado) {
   }
   
   reportData.sort(function(a, b) {
-    return new Date(a[3]) - new Date(b[3]);
+    var da = parseDataCellEstoque(a[3]);
+    var db = parseDataCellEstoque(b[3]);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
   });
   
   var sheetRelatorio = ss.getSheetByName("RELATORIO POR GRUPO DE ITEM");
@@ -1080,8 +1087,8 @@ function filtrarEstoquePorPeriodo(dataInicio, dataFim) {
   // Percorre cada linha e copia as que tiverem data na coluna C (índice 2) dentro do período
   for (var i = 0; i < dataValues.length; i++) {
     var row = dataValues[i];
-    var dateValue = row[2];
-    if (!(dateValue instanceof Date)) continue;
+    var dateValue = parseDataCellEstoque(row[2]);
+    if (dateValue === null) continue;
     if (dateValue >= startDate && dateValue <= endDate) {
       targetData.push(row);
     }
@@ -1259,6 +1266,7 @@ function updateMenus() {
     .addSeparator()
     .addItem("Atualizar Total Embarcado", "atualizarTotalEmbarcado")
     .addItem("Alternar Restauração", "toggleRestore")
+    .addItem("Corrigir Datas em Texto", "corrigirDatasEmTexto")
     .addItem("Apagar Última Linha", "apagarUltimaLinha")
     .addSeparator()
     .addItem("ÚLTIMA LINHA", "select10RowsBelow")
@@ -1332,7 +1340,9 @@ function onEdit(e) {
   
   var restoreEnabled = PropertiesService.getScriptProperties().getProperty("restoreEnabled");
   if (restoreEnabled === "false") {
-    Logger.log("onEdit: Restauração desativada, nenhuma ação realizada.");
+    // Edição/colagem manual liberada: converte datas coladas como texto em datas reais.
+    normalizarDatasColadas(e.range);
+    Logger.log("onEdit: Restauração desativada, datas da faixa colada normalizadas.");
     return;
   }
   
@@ -1929,8 +1939,8 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
   var dataValues = dataRange.getValues();
   
   var filtered = dataValues.filter(function(row) {
-    var dt = new Date(row[2]);
-    return dt >= startDate && dt <= endDate;
+    var dt = parseDataCellEstoque(row[2]);
+    return dt !== null && dt >= startDate && dt <= endDate;
   });
   
   var grupos = {};
@@ -1939,9 +1949,9 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
     if (!grupos[prod]) {
       grupos[prod] = row;
     } else {
-      var currentDate = new Date(row[2]);
-      var storedDate = new Date(grupos[prod][2]);
-      if (currentDate > storedDate) {
+      var currentDate = parseDataCellEstoque(row[2]);
+      var storedDate = parseDataCellEstoque(grupos[prod][2]);
+      if (storedDate === null || (currentDate !== null && currentDate > storedDate)) {
         grupos[prod] = row;
       }
     }
@@ -1954,7 +1964,9 @@ function gerarRelatorioEstoque(dataInicio, dataFim) {
   }
   
   reportData.sort(function(a, b) {
-    return new Date(a[3]) - new Date(b[3]);
+    var da = parseDataCellEstoque(a[3]);
+    var db = parseDataCellEstoque(b[3]);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
   });
   
   var sheetRelatorio = ss.getSheetByName("RELATORIO");
@@ -2045,9 +2057,9 @@ function gerarRelatorioPorGrupo(grupoSelecionado) {
     if (!gruposItens[item]) {
       gruposItens[item] = row;
     } else {
-      var currentDate = new Date(row[2]);
-      var storedDate = new Date(gruposItens[item][2]);
-      if (currentDate > storedDate) {
+      var currentDate = parseDataCellEstoque(row[2]);
+      var storedDate = parseDataCellEstoque(gruposItens[item][2]);
+      if (storedDate === null || (currentDate !== null && currentDate > storedDate)) {
         gruposItens[item] = row;
       }
     }
@@ -2060,7 +2072,9 @@ function gerarRelatorioPorGrupo(grupoSelecionado) {
   }
   
   reportData.sort(function(a, b) {
-    return new Date(a[3]) - new Date(b[3]);
+    var da = parseDataCellEstoque(a[3]);
+    var db = parseDataCellEstoque(b[3]);
+    return (da ? da.getTime() : 0) - (db ? db.getTime() : 0);
   });
   
   var sheetRelatorio = ss.getSheetByName("RELATORIO POR GRUPO DE ITEM");
@@ -2984,4 +2998,113 @@ function getProdutosEstoque() {
   var values = sheet.getRange('B2:B' + lastRow).getDisplayValues().flat();
   var produtos = values.filter(function(v) { return v.toString().trim() !== ''; });
   return Array.from(new Set(produtos));
+}
+
+/**
+ * parseDataCellEstoque: Converte o valor da coluna Data (C) da aba ESTOQUE em Date.
+ * Células gravadas como TEXTO no formato dd/mm/aaaa (com ou sem hh:mm:ss) — por
+ * exemplo, linhas coladas manualmente com a restauração desativada — não são
+ * reconhecidas por new Date() (que espera mm/dd/aaaa) e faziam o registro
+ * desaparecer silenciosamente dos relatórios por período.
+ * Retorna null quando o valor não pode ser interpretado como data.
+ */
+function parseDataCellEstoque(value) {
+  if (value instanceof Date) {
+    return isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === "string") {
+    var m = value.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+    if (m) {
+      return new Date(
+        parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10),
+        parseInt(m[4] || "0", 10), parseInt(m[5] || "0", 10), parseInt(m[6] || "0", 10)
+      );
+    }
+  }
+  var d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * normalizarDatasColadas: Converte em Date os valores colados como texto nas
+ * colunas de data da aba ESTOQUE (C = Data, J = Alterado Em) dentro da faixa
+ * editada. Chamada pelo onEdit quando a restauração está desativada, para que
+ * colagens manuais não deixem datas em texto (que sumiriam dos relatórios).
+ */
+function normalizarDatasColadas(range) {
+  var sheet = range.getSheet();
+  var startCol = range.getColumn();
+  var endCol = startCol + range.getNumColumns() - 1;
+  var dateCols = [3, 10]; // C e J
+  for (var i = 0; i < dateCols.length; i++) {
+    var col = dateCols[i];
+    if (col < startCol || col > endCol) continue;
+    var colRange = sheet.getRange(range.getRow(), col, range.getNumRows(), 1);
+    var values = colRange.getValues();
+    var changed = false;
+    for (var r = 0; r < values.length; r++) {
+      var v = values[r][0];
+      if (typeof v === "string" && v.trim() !== "") {
+        var d = parseDataCellEstoque(v);
+        if (d !== null) {
+          values[r][0] = d;
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      colRange.setValues(values);
+      colRange.setNumberFormat("dd/MM/yyyy HH:mm:ss");
+    }
+  }
+}
+
+/**
+ * corrigirDatasEmTexto: Varre toda a aba ESTOQUE (colunas C e J) e converte em
+ * Date os valores que estão gravados como texto — limpeza das colagens antigas.
+ * Disponível no menu GESTÃO DO ESTOQUE.
+ */
+function corrigirDatasEmTexto() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName("ESTOQUE");
+  if (!sheet) throw new Error("A aba ESTOQUE não foi encontrada.");
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    SpreadsheetApp.getUi().alert("Não há dados na aba ESTOQUE.");
+    return;
+  }
+
+  PropertiesService.getScriptProperties().setProperty("editingViaScript", "true");
+  var total = 0;
+  try {
+    var dateCols = [3, 10]; // C e J
+    for (var i = 0; i < dateCols.length; i++) {
+      var colRange = sheet.getRange(2, dateCols[i], lastRow - 1, 1);
+      var values = colRange.getValues();
+      var changed = false;
+      for (var r = 0; r < values.length; r++) {
+        var v = values[r][0];
+        if (typeof v === "string" && v.trim() !== "") {
+          var d = parseDataCellEstoque(v);
+          if (d !== null) {
+            values[r][0] = d;
+            changed = true;
+            total++;
+          }
+        }
+      }
+      if (changed) {
+        colRange.setValues(values);
+        colRange.setNumberFormat("dd/MM/yyyy HH:mm:ss");
+      }
+    }
+  } finally {
+    PropertiesService.getScriptProperties().deleteProperty("editingViaScript");
+  }
+
+  SpreadsheetApp.getUi().alert(
+    total > 0
+      ? "Correção concluída: " + total + " célula(s) de data em texto convertida(s) em data real."
+      : "Nenhuma data em texto encontrada. Está tudo certo!"
+  );
 }
